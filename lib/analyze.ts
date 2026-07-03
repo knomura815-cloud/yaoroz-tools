@@ -556,8 +556,13 @@ export function computeWeeklyReportKpis(rows: OrderRow[]): WeeklyReportKpis {
   const sumQty = (predicate: (row: OrderRow) => boolean): number =>
     rows.filter(predicate).reduce((sum, r) => sum + r.quantity, 0);
 
+  // 取消行はD.価格・D.数量がともにマイナスで記録されるため、価格は単価の絶対値として
+  // 扱い、符号（プラス/マイナス）はD.数量側だけで表現する（そうしないと符号同士が
+  // 打ち消し合い、取消のはずが売上に加算されてしまう）
   const sumAmount = (predicate: (row: OrderRow) => boolean): number =>
-    rows.filter(predicate).reduce((sum, r) => sum + r.price * r.quantity, 0);
+    rows
+      .filter(predicate)
+      .reduce((sum, r) => sum + Math.abs(r.price) * r.quantity, 0);
 
   const isFood = (row: OrderRow) => row.categoryPrimary === "フード";
   const isDrink = (row: OrderRow) => row.categoryPrimary === "ドリンク";
