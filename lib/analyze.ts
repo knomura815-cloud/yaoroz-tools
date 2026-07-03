@@ -475,6 +475,173 @@ export function getDayMonthHeatmap(rows: OrderRow[]): {
   return { months, cells };
 }
 
+// ランチ／ディナーの切り替え時刻（17時以降はディナー）
+const LUNCH_DINNER_CUTOFF_HOUR = 17;
+
+// CSV上の金額はすべて税込のため、税抜換算に使う税率
+const TAX_RATE = 1.1;
+
+export interface WeeklyReportKpis {
+  lunchSales: number; // 1. 売上高（ランチ）
+  dinnerSales: number; // 2. 売上高（ディナー）
+  foodUnitPrice: number; // 3. フード単価
+  courseCount: number; // 4. コース件数
+  ppjcTotal: number; // 5. PPJC合計数
+  ppjcRate: number; // 6. PPJC受注比率
+  osusumeCount: number; // 7. おすすめ出数
+  osusumeRate: number; // 8. おすすめ比率
+  avgDishCount: number; // 9. 平均皿数
+  dishUnitPrice: number; // 10. 皿単価
+  drinkUnitPrice: number; // 11. ドリンク単価
+  craftBeerCount: number; // 12. クラフトビール杯数
+  craftBeerRate: number; // 13. クラフトビール比率
+  nomihodaiCount: number; // 14. 飲み放題獲得件数
+  nomihodaiRate: number; // 15. 飲み放題比率
+  nomihodaiDrinkUnitPrice: number; // 16. 飲み放題ドリンク単価
+  alacarteDrinkAvgCount: number; // 17. アラカルト平均ドリンク杯数
+  alacarteDrinkUnitPrice: number; // 18. アラカルトドリンク単価
+  totalGuestCount: number; // 総客数（参考値）
+}
+
+interface WeeklyReceipt {
+  subtotal: number;
+  guestCount: number;
+  hour: number;
+}
+
+/**
+ * H.伝票発行日をキーに伝票を重複排除する（週次レポート集計用）
+ */
+function getWeeklyReceipts(rows: OrderRow[]): WeeklyReceipt[] {
+  const map = new Map<string, WeeklyReceipt>();
+
+  for (const row of rows) {
+    if (map.has(row.receiptIssuedAt)) continue;
+
+    const issuedAt = parseDateTime(row.receiptIssuedAt);
+    map.set(row.receiptIssuedAt, {
+      subtotal: row.subtotal,
+      guestCount: row.guestCount,
+      hour: issuedAt ? issuedAt.getHours() : 0,
+    });
+  }
+
+  return Array.from(map.values());
+}
+
+function divide(numerator: number, denominator: number): number {
+  return denominator === 0 ? 0 : numerator / denominator;
+}
+
+/**
+ * 週次業績レポート用の18項目を計算する
+ * - 数量はD.数量の合計（プラス・マイナスを合算したネット値）で集計する
+ * - 客数・小計は伝票（H.伝票発行日）ごとに重複除外して集計する
+ * - 金額はすべて税抜（÷1.1）に変換する
+ */
+export function computeWeeklyReportKpis(rows: OrderRow[]): WeeklyReportKpis {
+  const receipts = getWeeklyReceipts(rows);
+  const totalGuestCount = receipts.reduce((sum, r) => sum + r.guestCount, 0);
+
+  const lunchSales =
+    receipts
+      .filter((r) => r.hour < LUNCH_DINNER_CUTOFF_HOUR)
+      .reduce((sum, r) => sum + r.subtotal, 0) / TAX_RATE;
+
+  const dinnerSales =
+    receipts
+      .filter((r) => r.hour >= LUNCH_DINNER_CUTOFF_HOUR)
+      .reduce((sum, r) => sum + r.subtotal, 0) / TAX_RATE;
+
+  const sumQty = (predicate: (row: OrderRow) => boolean): number =>
+    rows.filter(predicate).reduce((sum, r) => sum + r.quantity, 0);
+
+  const sumAmount = (predicate: (row: OrderRow) => boolean): number =>
+    rows.filter(predicate).reduce((sum, r) => sum + r.price * r.quantity, 0);
+
+  const isFood = (row: OrderRow) => row.categoryPrimary === "フード";
+  const isDrink = (row: OrderRow) => row.categoryPrimary === "ドリンク";
+  const isCourse = (row: OrderRow) => row.categorySecondary === "コース";
+  const isNomihodaiPlanRow = (row: OrderRow) =>
+    row.categorySecondary === "飲み放題" &&
+    row.productName.includes("飲み放題") &&
+    !row.productName.startsWith("★");
+
+  const foodUnitPrice = divide(
+    sumAmount(isFood) / TAX_RATE,
+    totalGuestCount
+  );
+
+  const courseCount = sumQty(isCourse);
+
+  const ppjcTotal = sumQty((row) => row.productName === "PPJC");
+  const ppjcRate = divide(ppjcTotal, totalGuestCount);
+
+  const osusumeCount = sumQty(
+    (row) => row.categorySecondary === "季節のおすすめ"
+  );
+  const osusumeRate = divide(osusumeCount, totalGuestCount);
+
+  const nonCourseGuests = totalGuestCount - courseCount;
+  const isDishRow = (row: OrderRow) => isFood(row) && !isCourse(row);
+  const avgDishCount = divide(sumQty(isDishRow), nonCourseGuests);
+  const dishUnitPrice = divide(
+    sumAmount(isDishRow) / TAX_RATE,
+    nonCourseGuests
+  );
+
+  const drinkUnitPrice = divide(
+    sumAmount(isDrink) / TAX_RATE,
+    totalGuestCount
+  );
+
+  const craftBeerCount = sumQty(
+    (row) => row.categorySecondary === "ライディーンビール"
+  );
+  const craftBeerRate = divide(craftBeerCount, totalGuestCount);
+
+  const nomihodaiCount = sumQty(isNomihodaiPlanRow);
+  const nomihodaiRate = divide(nomihodaiCount, totalGuestCount);
+  const nomihodaiDrinkUnitPrice = divide(
+    sumAmount(isNomihodaiPlanRow) / TAX_RATE,
+    nomihodaiCount
+  );
+
+  const nonNomihodaiGuests = totalGuestCount - nomihodaiCount;
+  const isAlacarteDrinkRow = (row: OrderRow) =>
+    isDrink(row) && row.categorySecondary !== "飲み放題";
+  const alacarteDrinkAvgCount = divide(
+    sumQty(isAlacarteDrinkRow),
+    nonNomihodaiGuests
+  );
+  const alacarteDrinkUnitPrice = divide(
+    sumAmount(isAlacarteDrinkRow) / TAX_RATE,
+    nonNomihodaiGuests
+  );
+
+  return {
+    lunchSales,
+    dinnerSales,
+    foodUnitPrice,
+    courseCount,
+    ppjcTotal,
+    ppjcRate,
+    osusumeCount,
+    osusumeRate,
+    avgDishCount,
+    dishUnitPrice,
+    drinkUnitPrice,
+    craftBeerCount,
+    craftBeerRate,
+    nomihodaiCount,
+    nomihodaiRate,
+    nomihodaiDrinkUnitPrice,
+    alacarteDrinkAvgCount,
+    alacarteDrinkUnitPrice,
+    totalGuestCount,
+  };
+}
+
 export interface LateNightTopProducts {
   drinks: ProductSales[];
   foods: ProductSales[];
