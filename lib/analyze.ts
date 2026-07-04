@@ -501,12 +501,15 @@ export interface WeeklyReportKpis {
   alacarteDrinkAvgCount: number; // 17. アラカルト平均ドリンク杯数
   alacarteDrinkUnitPrice: number; // 18. アラカルトドリンク単価
   totalGuestCount: number; // 総客数（参考値）
+  partyCount: number; // 総組数（参考値、伝票＝テーブル単位の件数）
+  coursePartyCount: number; // うちコースを注文した組数（参考値）
 }
 
 interface WeeklyReceipt {
   subtotal: number;
   guestCount: number;
   hour: number;
+  courseQuantity: number; // その伝票内のコース商品の数量合計（ネット値）
 }
 
 /**
@@ -528,10 +531,14 @@ function getWeeklyReceipts(rows: OrderRow[]): WeeklyReceipt[] {
         subtotal: row.subtotal,
         guestCount: row.guestCount,
         hour: issuedAt ? issuedAt.getHours() : 0,
+        courseQuantity: row.categorySecondary === "コース" ? row.quantity : 0,
       });
     } else {
       existing.subtotal = Math.max(existing.subtotal, row.subtotal);
       existing.guestCount = Math.max(existing.guestCount, row.guestCount);
+      if (row.categorySecondary === "コース") {
+        existing.courseQuantity += row.quantity;
+      }
     }
   }
 
@@ -551,6 +558,8 @@ function divide(numerator: number, denominator: number): number {
 export function computeWeeklyReportKpis(rows: OrderRow[]): WeeklyReportKpis {
   const receipts = getWeeklyReceipts(rows);
   const totalGuestCount = receipts.reduce((sum, r) => sum + r.guestCount, 0);
+  const partyCount = receipts.length;
+  const coursePartyCount = receipts.filter((r) => r.courseQuantity > 0).length;
 
   const lunchSales =
     receipts
@@ -589,7 +598,8 @@ export function computeWeeklyReportKpis(rows: OrderRow[]): WeeklyReportKpis {
   const courseCount = sumQty(isCourse);
 
   const ppjcTotal = sumQty((row) => row.productName === "PPJC");
-  const ppjcRate = divide(ppjcTotal, totalGuestCount);
+  // PPJC受注比率は客数比ではなく、コースを注文した組を除いた組数比で算出する
+  const ppjcRate = divide(ppjcTotal, partyCount - coursePartyCount);
 
   const osusumeCount = sumQty(
     (row) => row.categorySecondary === "季節のおすすめ"
@@ -654,6 +664,8 @@ export function computeWeeklyReportKpis(rows: OrderRow[]): WeeklyReportKpis {
     alacarteDrinkAvgCount,
     alacarteDrinkUnitPrice,
     totalGuestCount,
+    partyCount,
+    coursePartyCount,
   };
 }
 

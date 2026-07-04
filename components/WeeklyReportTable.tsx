@@ -96,6 +96,8 @@ export default function WeeklyReportTable({ kpis }: WeeklyReportTableProps) {
 
       <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
         総客数: {Math.floor(kpis.totalGuestCount).toLocaleString("ja-JP")}人
+        ／総組数: {kpis.partyCount.toLocaleString("ja-JP")}組（うちコース:{" "}
+        {kpis.coursePartyCount.toLocaleString("ja-JP")}組）
       </p>
 
       <div className="mt-4 overflow-x-auto">
