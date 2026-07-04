@@ -511,19 +511,28 @@ interface WeeklyReceipt {
 
 /**
  * H.伝票発行日をキーに伝票を重複排除する（週次レポート集計用）
+ * - CSVには実際の注文とは別に「価格・数量ともに0のメニュー一覧行」が同じ伝票番号で
+ *   紛れ込んでいることがあり、そのH.客数（合計）・H.小計は実際より少ない値（例:1人・0円）
+ *   になっている。そのため単純に最初に出てきた行の値を採用せず、同一伝票内の最大値を
+ *   採用することで、実際の客数・小計を正しく拾う
  */
 function getWeeklyReceipts(rows: OrderRow[]): WeeklyReceipt[] {
   const map = new Map<string, WeeklyReceipt>();
 
   for (const row of rows) {
-    if (map.has(row.receiptIssuedAt)) continue;
-
     const issuedAt = parseDateTime(row.receiptIssuedAt);
-    map.set(row.receiptIssuedAt, {
-      subtotal: row.subtotal,
-      guestCount: row.guestCount,
-      hour: issuedAt ? issuedAt.getHours() : 0,
-    });
+    const existing = map.get(row.receiptIssuedAt);
+
+    if (!existing) {
+      map.set(row.receiptIssuedAt, {
+        subtotal: row.subtotal,
+        guestCount: row.guestCount,
+        hour: issuedAt ? issuedAt.getHours() : 0,
+      });
+    } else {
+      existing.subtotal = Math.max(existing.subtotal, row.subtotal);
+      existing.guestCount = Math.max(existing.guestCount, row.guestCount);
+    }
   }
 
   return Array.from(map.values());
@@ -590,9 +599,10 @@ export function computeWeeklyReportKpis(rows: OrderRow[]): WeeklyReportKpis {
   const nonCourseGuests = totalGuestCount - courseCount;
   const isDishRow = (row: OrderRow) => isFood(row) && !isCourse(row);
   const avgDishCount = divide(sumQty(isDishRow), nonCourseGuests);
+  // 皿単価は「1皿あたりの平均価格」のため、客数ではなく皿数（数量の合計）で割る
   const dishUnitPrice = divide(
     sumAmount(isDishRow) / TAX_RATE,
-    nonCourseGuests
+    sumQty(isDishRow)
   );
 
   const drinkUnitPrice = divide(
