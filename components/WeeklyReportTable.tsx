@@ -56,20 +56,21 @@ export default function WeeklyReportTable({ kpis }: WeeklyReportTableProps) {
     { no: 2, label: "売上高（ディナー）", value: kpis.dinnerSales, format: "yen", unit: "" },
     { no: 3, label: "フード単価", value: kpis.foodUnitPrice, format: "yen", unit: "" },
     { no: 4, label: "コース件数", value: kpis.courseCount, format: "count", unit: "件" },
-    { no: 5, label: "PPJC合計受注数", value: kpis.ppjcTotal, format: "count", unit: "個" },
-    { no: 6, label: "PPJC受注比率", value: kpis.ppjcRate, format: "rate", unit: "" },
-    { no: 7, label: "おすすめ出数", value: kpis.osusumeCount, format: "count", unit: "点" },
-    { no: 8, label: "おすすめ比率", value: kpis.osusumeRate, format: "rate", unit: "" },
-    { no: 9, label: "平均皿数", value: kpis.avgDishCount, format: "decimal", unit: "皿" },
-    { no: 10, label: "平均皿単価", value: kpis.dishUnitPrice, format: "yen", unit: "" },
-    { no: 11, label: "ドリンク単価", value: kpis.drinkUnitPrice, format: "yen", unit: "" },
-    { no: 12, label: "クラフトビール杯数", value: kpis.craftBeerCount, format: "count", unit: "杯" },
-    { no: 13, label: "クラフトビール比率", value: kpis.craftBeerRate, format: "rate", unit: "" },
-    { no: 14, label: "アラカルトドリンク単価", value: kpis.alacarteDrinkUnitPrice, format: "yen", unit: "" },
-    { no: 15, label: "飲み放題ドリンク単価", value: kpis.nomihodaiDrinkUnitPrice, format: "yen", unit: "" },
-    { no: 16, label: "平均ドリンク杯数", value: kpis.alacarteDrinkAvgCount, format: "decimal", unit: "杯" },
-    { no: 17, label: "飲み放題獲得件数", value: kpis.nomihodaiCount, format: "count", unit: "件" },
-    { no: 18, label: "飲み放題比率", value: kpis.nomihodaiRate, format: "rate", unit: "" },
+    { no: 5, label: "コース比率", value: kpis.courseRate, format: "rate", unit: "" },
+    { no: 6, label: "PPJC合計受注数", value: kpis.ppjcTotal, format: "count", unit: "個" },
+    { no: 7, label: "PPJC受注比率", value: kpis.ppjcRate, format: "rate", unit: "" },
+    { no: 8, label: "おすすめ出数", value: kpis.osusumeCount, format: "count", unit: "点" },
+    { no: 9, label: "おすすめ比率", value: kpis.osusumeRate, format: "rate", unit: "" },
+    { no: 10, label: "平均皿数", value: kpis.avgDishCount, format: "decimal", unit: "皿" },
+    { no: 11, label: "平均皿単価", value: kpis.dishUnitPrice, format: "yen", unit: "" },
+    { no: 12, label: "ドリンク単価", value: kpis.drinkUnitPrice, format: "yen", unit: "" },
+    { no: 13, label: "クラフトビール杯数", value: kpis.craftBeerCount, format: "count", unit: "杯" },
+    { no: 14, label: "クラフトビール比率", value: kpis.craftBeerRate, format: "rate", unit: "" },
+    { no: 15, label: "アラカルトドリンク単価", value: kpis.alacarteDrinkUnitPrice, format: "yen", unit: "" },
+    { no: 16, label: "飲み放題ドリンク単価", value: kpis.nomihodaiDrinkUnitPrice, format: "yen", unit: "" },
+    { no: 17, label: "平均ドリンク杯数", value: kpis.alacarteDrinkAvgCount, format: "decimal", unit: "杯" },
+    { no: 18, label: "飲み放題獲得件数", value: kpis.nomihodaiCount, format: "count", unit: "件" },
+    { no: 19, label: "飲み放題比率", value: kpis.nomihodaiRate, format: "rate", unit: "" },
   ];
 
   async function handleCopy() {
@@ -83,7 +84,7 @@ export default function WeeklyReportTable({ kpis }: WeeklyReportTableProps) {
     <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
       <div className="flex items-center justify-between">
         <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-50">
-          週次業績レポート（18項目）
+          週次業績レポート（19項目）
         </h2>
         <button
           type="button"
