@@ -2,7 +2,7 @@ import Papa from "papaparse";
 import { categorizeProduct } from "./analyze";
 import { OrderRow } from "./types";
 
-const HEADER_MARKER = "H.曜日";
+const HEADER_MARKER = "D.商品カテゴリ1";
 
 /**
  * 「￥1,234」形式の文字列を数値に変換する
@@ -16,7 +16,7 @@ function parseYen(value: string | undefined): number {
 }
 
 /**
- * カンマ区切りの数値文字列を数値に変換する
+ * カンマ区切りの数値文字列を数値に変換する（マイナス値も許容）
  */
 function parseNumber(value: string | undefined): number {
   if (!value) return 0;
@@ -39,7 +39,7 @@ function extractProductName(value: string): string {
  * POS+の汎用データ出力CSVを解析する
  * - エンコード: CP932 (Shift-JIS), カンマ区切り
  * - 先頭10行は説明文のためスキップ
- * - 「H.曜日」を含む行をヘッダー行として扱う
+ * - 「D.商品カテゴリ1」を含む行をヘッダー行として扱う
  */
 export function parseOrderCsv(buffer: ArrayBuffer): OrderRow[] {
   const text = new TextDecoder("shift_jis").decode(buffer);
@@ -47,7 +47,9 @@ export function parseOrderCsv(buffer: ArrayBuffer): OrderRow[] {
 
   const headerOffset = lines.findIndex((line) => line.includes(HEADER_MARKER));
   if (headerOffset === -1) {
-    throw new Error("ヘッダー行（H.曜日を含む行）が見つかりませんでした。");
+    throw new Error(
+      "ヘッダー行（D.商品カテゴリ1を含む行）が見つかりませんでした。"
+    );
   }
 
   const csvText = lines.slice(headerOffset).join("\n");
@@ -58,6 +60,10 @@ export function parseOrderCsv(buffer: ArrayBuffer): OrderRow[] {
 
   const [header, ...dataRows] = result.data;
 
+  const idxCategoryPrimary = header.indexOf("D.商品カテゴリ1");
+  const idxCategorySecondary = header.indexOf("D.商品カテゴリ2");
+  const idxStore = header.indexOf("H.店舗");
+  const idxBusinessDate = header.indexOf("H.集計営業日");
   const idxDayOfWeek = header.indexOf("H.曜日");
   const idxIssuedAt = header.indexOf("H.伝票発行日");
   const idxGuestCount = header.indexOf("H.客数（合計）");
@@ -65,6 +71,7 @@ export function parseOrderCsv(buffer: ArrayBuffer): OrderRow[] {
   const idxOrderedAt = header.indexOf("D.オーダー日時");
   const idxProduct = header.indexOf("D.商品");
   const idxPrice = header.indexOf("D.価格");
+  const idxQuantity = header.indexOf("D.数量");
 
   const rows: OrderRow[] = [];
 
@@ -74,6 +81,10 @@ export function parseOrderCsv(buffer: ArrayBuffer): OrderRow[] {
     const productName = extractProductName(fields[idxProduct] ?? "");
 
     rows.push({
+      categoryPrimary: (fields[idxCategoryPrimary] ?? "").trim(),
+      categorySecondary: (fields[idxCategorySecondary] ?? "").trim(),
+      store: (fields[idxStore] ?? "").trim(),
+      businessDate: (fields[idxBusinessDate] ?? "").trim(),
       dayOfWeek: (fields[idxDayOfWeek] ?? "").trim(),
       receiptIssuedAt: (fields[idxIssuedAt] ?? "").trim(),
       guestCount: parseNumber(fields[idxGuestCount]),
@@ -81,6 +92,7 @@ export function parseOrderCsv(buffer: ArrayBuffer): OrderRow[] {
       orderedAt: (fields[idxOrderedAt] ?? "").trim(),
       productName,
       price: parseYen(fields[idxPrice]),
+      quantity: parseNumber(fields[idxQuantity]),
       category: categorizeProduct(productName),
     });
   }
