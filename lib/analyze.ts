@@ -486,7 +486,7 @@ export interface WeeklyReportKpis {
   dinnerSales: number; // 2. 売上高（ディナー）
   foodUnitPrice: number; // 3. フード単価
   courseCount: number; // 4. コース件数
-  courseRate: number; // コース比率（コースを注文した組数÷総組数）
+  courseRate: number; // コース比率（コース件数÷総客数）
   ppjcTotal: number; // 5. PPJC合計数
   ppjcRate: number; // 6. PPJC受注比率
   osusumeCount: number; // 7. おすすめ出数
@@ -597,7 +597,7 @@ export function computeWeeklyReportKpis(rows: OrderRow[]): WeeklyReportKpis {
   );
 
   const courseCount = sumQty(isCourse);
-  const courseRate = divide(coursePartyCount, partyCount);
+  const courseRate = divide(courseCount, totalGuestCount);
 
   const ppjcTotal = sumQty((row) => row.productName === "PPJC");
   // PPJC受注比率は客数比ではなく、コースを注文した組を除いた組数比で算出する
