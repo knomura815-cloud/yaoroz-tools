@@ -44,6 +44,21 @@ function formatValue(row: ReportRow): string {
   }
 }
 
+// スプレッドシートにそのまま貼り付けられるよう、単位・カンマなしの数値のみを返す
+function copyValue(row: ReportRow): string {
+  switch (row.format) {
+    case "yen":
+      return String(Math.floor(row.value + 1e-6));
+    case "rate":
+      return String(Math.round(row.value * 10000) / 10000);
+    case "decimal":
+      return row.value.toFixed(2);
+    case "count":
+    default:
+      return String(Math.floor(row.value));
+  }
+}
+
 interface WeeklyReportTableProps {
   kpis: WeeklyReportKpis;
 }
@@ -73,8 +88,13 @@ export default function WeeklyReportTable({ kpis }: WeeklyReportTableProps) {
     { no: 19, label: "飲み放題比率", value: kpis.nomihodaiRate, format: "rate", unit: "" },
   ];
 
+  // フード単価以降（売上高ランチ・ディナーを除く）の数値だけを、
+  // スプレッドシートの値列にそのまま貼り付けられる形式でコピーする
   async function handleCopy() {
-    const text = rows.map((row) => `${row.label}\t${formatValue(row)}`).join("\n");
+    const text = rows
+      .filter((row) => row.label !== "売上高（ランチ）" && row.label !== "売上高（ディナー）")
+      .map((row) => copyValue(row))
+      .join("\n");
     await navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -91,7 +111,7 @@ export default function WeeklyReportTable({ kpis }: WeeklyReportTableProps) {
           onClick={handleCopy}
           className="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
         >
-          {copied ? "コピーしました" : "全項目をコピー"}
+          {copied ? "コピーしました" : "フード単価以降をコピー"}
         </button>
       </div>
 
