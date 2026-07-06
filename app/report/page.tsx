@@ -92,12 +92,20 @@ export default function ReportPage() {
         <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
           アップロードされたCSVをもとに集計した結果です。
         </p>
-        <Link
-          href="/report/history"
-          className="mt-1 inline-block text-xs font-medium text-zinc-500 underline dark:text-zinc-400"
-        >
-          過去の売上分析データ一覧
-        </Link>
+        <div className="mt-1 flex gap-4">
+          <Link
+            href="/"
+            className="inline-block text-xs font-medium text-zinc-500 underline dark:text-zinc-400"
+          >
+            トップページに戻る
+          </Link>
+          <Link
+            href="/report/history"
+            className="inline-block text-xs font-medium text-zinc-500 underline dark:text-zinc-400"
+          >
+            過去の売上分析データ一覧
+          </Link>
+        </div>
 
         <div className="mt-8">
           {kpis ? (

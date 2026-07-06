@@ -76,12 +76,20 @@ export default function SalesReportHistoryPage() {
         <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
           保存された売上分析データを、対象期間が新しい順に表示しています。
         </p>
-        <Link
-          href="/report"
-          className="mt-1 inline-block text-xs font-medium text-zinc-500 underline dark:text-zinc-400"
-        >
-          売上レポートに戻る
-        </Link>
+        <div className="mt-1 flex gap-4">
+          <Link
+            href="/"
+            className="inline-block text-xs font-medium text-zinc-500 underline dark:text-zinc-400"
+          >
+            トップページに戻る
+          </Link>
+          <Link
+            href="/report"
+            className="inline-block text-xs font-medium text-zinc-500 underline dark:text-zinc-400"
+          >
+            売上レポートに戻る
+          </Link>
+        </div>
 
         <div className="mt-8">
           {error && (
