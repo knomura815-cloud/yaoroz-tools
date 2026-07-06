@@ -672,6 +672,42 @@ export function computeWeeklyReportKpis(rows: OrderRow[]): WeeklyReportKpis {
   };
 }
 
+export interface WeekRange {
+  weekStart: string; // "YYYY-MM-DD"
+  weekEnd: string; // "YYYY-MM-DD"
+}
+
+function toIsoDate(year: number, month: number, day: number): string {
+  const mm = String(month).padStart(2, "0");
+  const dd = String(day).padStart(2, "0");
+  return `${year}-${mm}-${dd}`;
+}
+
+/**
+ * H.伝票発行日の日付部分の最小・最大からCSV全体の対象期間を求める
+ */
+export function getWeekRange(rows: OrderRow[]): WeekRange | null {
+  let min: string | null = null;
+  let max: string | null = null;
+
+  for (const row of rows) {
+    const match = row.receiptIssuedAt.match(
+      /^(\d{4})\/(\d{1,2})\/(\d{1,2})/
+    );
+    if (!match) continue;
+
+    const [, year, month, day] = match;
+    const iso = toIsoDate(Number(year), Number(month), Number(day));
+
+    if (min === null || iso < min) min = iso;
+    if (max === null || iso > max) max = iso;
+  }
+
+  if (min === null || max === null) return null;
+
+  return { weekStart: min, weekEnd: max };
+}
+
 export interface LateNightTopProducts {
   drinks: ProductSales[];
   foods: ProductSales[];

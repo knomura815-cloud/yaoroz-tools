@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { WeeklyReportKpis } from "@/lib/analyze";
+import { formatCount, formatDecimal, formatRate, formatYen } from "@/lib/format";
 
 type ValueFormat = "yen" | "count" | "rate" | "decimal";
 
@@ -11,23 +12,6 @@ interface ReportRow {
   value: number;
   format: ValueFormat;
   unit: string;
-}
-
-// 浮動小数点の丸め誤差（例: 3300/1.1 = 2999.9999999999995）を吸収してから切り捨てる
-function formatYen(value: number): string {
-  return `${Math.floor(value + 1e-6).toLocaleString("ja-JP")}円`;
-}
-
-function formatCount(value: number, unit: string): string {
-  return `${Math.floor(value).toLocaleString("ja-JP")}${unit}`;
-}
-
-function formatRate(value: number): string {
-  return `${(value * 100).toFixed(1)}%`;
-}
-
-function formatDecimal(value: number, unit: string): string {
-  return `${value.toFixed(2)}${unit}`;
 }
 
 function formatValue(row: ReportRow): string {
