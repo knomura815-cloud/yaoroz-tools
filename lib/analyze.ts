@@ -513,37 +513,83 @@ interface WeeklyReceipt {
   courseQuantity: number; // その伝票内のコース商品の数量合計（ネット値）
 }
 
+interface WeeklyReceiptAccumulator {
+  subtotal: number;
+  guestCount: number;
+  courseQuantity: number;
+  issuedAt: Date | null;
+  earliestNonOtoshiOrderedAt: Date | null;
+  earliestOrderedAt: Date | null;
+}
+
 /**
  * H.伝票発行日をキーに伝票を重複排除する（週次レポート集計用）
  * - CSVには実際の注文とは別に「価格・数量ともに0のメニュー一覧行」が同じ伝票番号で
  *   紛れ込んでいることがあり、そのH.客数（合計）・H.小計は実際より少ない値（例:1人・0円）
  *   になっている。そのため単純に最初に出てきた行の値を採用せず、同一伝票内の最大値を
  *   採用することで、実際の客数・小計を正しく拾う
+ * - ランチ/ディナー判定に使う時刻は、伝票発行時刻ではなく「お通しを除いた最初の実注文
+ *   時刻」を使う。ディナーの伝票を来店前に立ち上げておく（お通しだけ先に登録しておく）
+ *   運用があり、伝票発行時刻をそのまま使うとランチと誤判定されてしまうため
  */
 function getWeeklyReceipts(rows: OrderRow[]): WeeklyReceipt[] {
-  const map = new Map<string, WeeklyReceipt>();
+  const map = new Map<string, WeeklyReceiptAccumulator>();
 
   for (const row of rows) {
-    const issuedAt = parseDateTime(row.receiptIssuedAt);
     const existing = map.get(row.receiptIssuedAt);
+    const accumulator: WeeklyReceiptAccumulator = existing ?? {
+      subtotal: row.subtotal,
+      guestCount: row.guestCount,
+      courseQuantity: 0,
+      issuedAt: parseDateTime(row.receiptIssuedAt),
+      earliestNonOtoshiOrderedAt: null,
+      earliestOrderedAt: null,
+    };
 
-    if (!existing) {
-      map.set(row.receiptIssuedAt, {
-        subtotal: row.subtotal,
-        guestCount: row.guestCount,
-        hour: issuedAt ? issuedAt.getHours() : 0,
-        courseQuantity: row.categorySecondary === "コース" ? row.quantity : 0,
-      });
-    } else {
-      existing.subtotal = Math.max(existing.subtotal, row.subtotal);
-      existing.guestCount = Math.max(existing.guestCount, row.guestCount);
-      if (row.categorySecondary === "コース") {
-        existing.courseQuantity += row.quantity;
+    if (existing) {
+      accumulator.subtotal = Math.max(accumulator.subtotal, row.subtotal);
+      accumulator.guestCount = Math.max(accumulator.guestCount, row.guestCount);
+    }
+
+    if (row.categorySecondary === "コース") {
+      accumulator.courseQuantity += row.quantity;
+    }
+
+    if (row.quantity !== 0) {
+      const orderedAt = parseDateTime(row.orderedAt);
+      if (orderedAt) {
+        if (
+          !accumulator.earliestOrderedAt ||
+          orderedAt < accumulator.earliestOrderedAt
+        ) {
+          accumulator.earliestOrderedAt = orderedAt;
+        }
+        if (
+          row.productName !== "お通し" &&
+          (!accumulator.earliestNonOtoshiOrderedAt ||
+            orderedAt < accumulator.earliestNonOtoshiOrderedAt)
+        ) {
+          accumulator.earliestNonOtoshiOrderedAt = orderedAt;
+        }
       }
     }
+
+    map.set(row.receiptIssuedAt, accumulator);
   }
 
-  return Array.from(map.values());
+  return Array.from(map.values()).map((accumulator) => {
+    const referenceTime =
+      accumulator.earliestNonOtoshiOrderedAt ??
+      accumulator.earliestOrderedAt ??
+      accumulator.issuedAt;
+
+    return {
+      subtotal: accumulator.subtotal,
+      guestCount: accumulator.guestCount,
+      courseQuantity: accumulator.courseQuantity,
+      hour: referenceTime ? referenceTime.getHours() : 0,
+    };
+  });
 }
 
 function divide(numerator: number, denominator: number): number {
