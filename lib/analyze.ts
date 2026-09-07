@@ -655,7 +655,10 @@ export function computeWeeklyReportKpis(rows: OrderRow[]): WeeklyReportKpis {
   const osusumeRate = divide(osusumeCount, totalGuestCount);
 
   const nonCourseGuests = totalGuestCount - courseCount;
-  const isDishRow = (row: OrderRow) => isFood(row) && !isCourse(row);
+  // 平均皿数・皿単価はお通しを「注文した皿」に含めない（コース以外の全員に自動で
+  // つくもので、実質的な追加注文とは性質が異なるため）
+  const isDishRow = (row: OrderRow) =>
+    isFood(row) && !isCourse(row) && row.productName !== "お通し";
   const avgDishCount = divide(sumQty(isDishRow), nonCourseGuests);
   // 皿単価は「1皿あたりの平均価格」のため、客数ではなく皿数（数量の合計）で割る
   const dishUnitPrice = divide(
